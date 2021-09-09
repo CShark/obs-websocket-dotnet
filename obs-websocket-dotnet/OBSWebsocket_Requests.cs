@@ -298,6 +298,16 @@ namespace OBSWebsocketDotNet
 
         /// <summary>
         /// Gets the scene specific properties of the specified source item. Coordinates are relative to the item's parent (the scene or group it belongs to).
+        /// </summary>
+        /// <param name="itemId">The id of the source</param>
+        /// <param name="sceneName">The name of the scene that the source item belongs to. Defaults to the current scene.</param>
+        public SceneItemProperties GetSceneItemProperties(int itemId, string sceneName = null)
+        {
+            return GetSceneItemPropertiesJson(itemId, sceneName).ToObject<SceneItemProperties>();
+        }
+
+        /// <summary>
+        /// Gets the scene specific properties of the specified source item. Coordinates are relative to the item's parent (the scene or group it belongs to).
         /// Response is a JObject
         /// </summary>
         /// <param name="itemName">The name of the source</param>
@@ -307,6 +317,30 @@ namespace OBSWebsocketDotNet
             var requestFields = new JObject
             {
                 { "item", itemName }
+            };
+
+            if (sceneName != null)
+            {
+                requestFields.Add("scene-name", sceneName);
+            }
+
+            return SendRequest("GetSceneItemProperties", requestFields);
+        }
+
+        /// <summary>
+        /// Gets the scene specific properties of the specified source item. Coordinates are relative to the item's parent (the scene or group it belongs to).
+        /// Response is a JObject
+        /// </summary>
+        /// <param name="itemId">The id of the source</param>
+        /// <param name="sceneName">The name of the scene that the source item belongs to. Defaults to the current scene.</param>
+        public JObject GetSceneItemPropertiesJson(int itemId, string sceneName = null)
+        {
+            var requestFields = new JObject {
+                {
+                    "item", new JObject {
+                        {"id", itemId}
+                    }
+                }
             };
 
             if (sceneName != null)
@@ -755,6 +789,35 @@ namespace OBSWebsocketDotNet
             if (requestFields["item"] == null)
             {
                 requestFields["item"] = props.ItemName;
+            }
+
+            if (sceneName != null)
+            {
+                requestFields.Add("scene-name", sceneName);
+            }
+
+            SendRequest("SetSceneItemProperties", requestFields);
+        }
+
+        /// <summary>
+        /// Sets the scene specific properties of a source. Unspecified properties will remain unchanged. Coordinates are relative to the item's parent (the scene or group it belongs to).
+        /// </summary>
+        /// <param name="props">Object containing changes</param>
+        /// <param name="itemId">Id of the scene item</param>
+        /// <param name="sceneName">Option scene name</param>
+        public void SetSceneItemProperties(SceneItemProperties props, int itemId, string sceneName = null)
+        {
+            JsonSerializerSettings settings = new JsonSerializerSettings
+            {
+                NullValueHandling = NullValueHandling.Ignore
+            };
+            var requestFields = JObject.Parse(JsonConvert.SerializeObject(props, settings));
+
+            if (requestFields["item"] == null)
+            {
+                requestFields["item"] = new JObject {
+                    {"id", itemId}
+                };
             }
 
             if (sceneName != null)
