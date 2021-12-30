@@ -3,8 +3,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.NetworkInformation;
 using System.Reflection;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.VisualStudio.TestPlatform.Common.DataCollection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace OBSWebsocketDotNet.Tests.Helper
@@ -18,12 +22,15 @@ namespace OBSWebsocketDotNet.Tests.Helper
         /// <summary>
         /// Websocket password as set in global.ini supplied by the test
         /// </summary>
-        private const string websocketPassword = "LjbT8ySzicc6WLMi";
+        public const string WebsocketPassword = "LjbT8ySzicc6WLMi";
+
+        public const string WebsocketConnection = "ws://127.0.0.1:4444";
 
         private const string defaultSceneCollection = "Default";
         private const string defaultProfile = "Default";
 
         private Process obs;
+        private OBSWebsocket websocket;
 
         public ObsHelper(TestContext testContext)
         {
@@ -50,7 +57,7 @@ namespace OBSWebsocketDotNet.Tests.Helper
             {
                 throw new ArgumentException(@"Obs was found but the websocket plugin seems to be missing");
             }
-            
+
             ResetConfigFiles();
         }
 
@@ -61,17 +68,23 @@ namespace OBSWebsocketDotNet.Tests.Helper
             var configPath = Path.Combine(basePath, @"config\obs-studio");
 
             using (var globalMasterConfig = Assembly.GetExecutingAssembly()
-                       .GetManifestResourceStream("OBSWebsocketDotNet.Tests.Helper.ObsConfiguration.global.ini")) {
-                if (globalMasterConfig != null) {
+                       .GetManifestResourceStream("OBSWebsocketDotNet.Tests.Helper.ObsConfiguration.global.ini"))
+            {
+                if (globalMasterConfig != null)
+                {
                     var globalConfig = Path.Combine(configPath, "global.ini");
-                    if (File.Exists(globalConfig)) {
+                    if (File.Exists(globalConfig))
+                    {
                         File.Delete(globalConfig);
                     }
 
-                    using (var file = File.Create(globalConfig)) {
+                    using (var file = File.Create(globalConfig))
+                    {
                         globalMasterConfig.CopyTo(file);
                     }
-                } else {
+                }
+                else
+                {
                     throw new ArgumentException("obs config files are missing");
                 }
             }
@@ -86,10 +99,13 @@ namespace OBSWebsocketDotNet.Tests.Helper
 
             Directory.CreateDirectory(scenesConfigDir);
 
-            foreach (var config in sceneMasterConfigs) {
+            foreach (var config in sceneMasterConfigs)
+            {
                 var configName = String.Join('.', config.Split('.').TakeLast(2));
-                using (var sceneMasterStream = Assembly.GetExecutingAssembly().GetManifestResourceStream(config)) {
-                    using (var file = File.Create(Path.Combine(scenesConfigDir, configName))) {
+                using (var sceneMasterStream = Assembly.GetExecutingAssembly().GetManifestResourceStream(config))
+                {
+                    using (var file = File.Create(Path.Combine(scenesConfigDir, configName)))
+                    {
                         sceneMasterStream.CopyTo(file);
                     }
                 }
@@ -105,13 +121,16 @@ namespace OBSWebsocketDotNet.Tests.Helper
 
             Directory.CreateDirectory(profileConfigDir);
 
-            foreach (var config in profileMasterConfigs) {
+            foreach (var config in profileMasterConfigs)
+            {
                 var profileName = config.Split('.').TakeLast(2).First();
 
                 Directory.CreateDirectory(Path.Combine(profileConfigDir, profileName));
 
-                using (var profileMasterStream = Assembly.GetExecutingAssembly().GetManifestResourceStream(config)) {
-                    using (var file = File.Create(Path.Combine(profileConfigDir, profileName, "basic.ini"))) {
+                using (var profileMasterStream = Assembly.GetExecutingAssembly().GetManifestResourceStream(config))
+                {
+                    using (var file = File.Create(Path.Combine(profileConfigDir, profileName, "basic.ini")))
+                    {
                         profileMasterStream.CopyTo(file);
                     }
                 }
@@ -130,13 +149,31 @@ namespace OBSWebsocketDotNet.Tests.Helper
                 if (obs?.HasExited == true)
                     obs = null;
             }
-
+            
             return obs != null;
         }
 
-        public bool RelaunchObs()
+        public async Task<bool> WaitForWebsocket(int retry = 5, int delay = 500)
+        {
+            while (retry-- > 0)
+            {
+                var ipGlobalProperties = IPGlobalProperties.GetIPGlobalProperties();
+                var tcpConnInfoArray = ipGlobalProperties.GetActiveTcpListeners();
+
+                if (tcpConnInfoArray.Any(x => x.Port == 4444))
+                    return true;
+
+                await Task.Delay(delay);
+            }
+
+            return false;
+        }
+
+        public bool ResetObs()
         {
             TerminateObs();
+            Task.WaitAll(Task.Delay(500));
+            ResetConfigFiles();
             return LaunchObs();
         }
 
@@ -144,9 +181,30 @@ namespace OBSWebsocketDotNet.Tests.Helper
         {
             if (obs != null)
             {
+                if (websocket != null)
+                {
+                    websocket.Disconnect();
+                }
+
                 obs.Kill();
                 obs = null;
             }
+        }
+
+        public async Task<OBSWebsocket> GetConnection()
+        {
+            if (websocket == null)
+            {
+                if (obs != null)
+                {
+                    await WaitForWebsocket();
+
+                    websocket = new OBSWebsocket();
+                    websocket.Connect(WebsocketConnection, WebsocketPassword);
+                }
+            }
+
+            return websocket;
         }
     }
 }
