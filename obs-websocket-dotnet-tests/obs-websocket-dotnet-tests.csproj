@@ -9,6 +9,16 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <None Remove="Helper\ObsConfiguration\global.ini" />
+	  <None Remove="Helper\ObsConfiguration\scenes\Default.json" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <EmbeddedResource Include="Helper\ObsConfiguration\global.ini" />
+	  <EmbeddedResource Include="Helper\ObsConfiguration\scenes\Default.json" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.9.4" />
 		<PackageReference Include="MSTest.TestAdapter" Version="2.2.3" />
 		<PackageReference Include="MSTest.TestFramework" Version="2.2.3" />
@@ -18,6 +28,11 @@
 
 	<ItemGroup>
 	  <ProjectReference Include="..\obs-websocket-dotnet\obs-websocket-dotnet.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="Events\" />
+	  <Folder Include="Requests\" />
 	</ItemGroup>
 
 </Project>
